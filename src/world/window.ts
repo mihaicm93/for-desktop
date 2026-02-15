@@ -15,4 +15,15 @@ contextBridge.exposeInMainWorld("native", {
   close: () => ipcRenderer.send("close"),
 
   setBadgeCount: (count: number) => ipcRenderer.send("setBadgeCount", count),
+  // Allow renderer to receive update events from main and send messages back.
+  on: (channel: string, listener: (...args: any[]) => void) => {
+    const allowed = new Set(["update-downloaded"]);
+    if (!allowed.has(channel)) return;
+    ipcRenderer.on(channel, (_e, ...args) => listener(...args));
+  },
+  send: (channel: string, ...args: any[]) => {
+    const allowed = new Set(["restart-app"]);
+    if (!allowed.has(channel)) return;
+    ipcRenderer.send(channel, ...args);
+  },
 });

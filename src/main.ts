@@ -1,6 +1,6 @@
 import { updateElectronApp } from "update-electron-app";
 
-import { BrowserWindow, app, shell } from "electron";
+import { BrowserWindow, app, ipcMain, shell } from "electron";
 import started from "electron-squirrel-startup";
 
 import { autoLaunch } from "./native/autoLaunch";
@@ -25,9 +25,6 @@ if (!config.hardwareAcceleration) {
 const acquiredLock = app.requestSingleInstanceLock();
 
 if (acquiredLock) {
-  // start auto update logic
-  updateElectronApp();
-
   // create and configure the app when electron is ready
   app.on("ready", () => {
     // enable auto start on Windows and MacOS
@@ -41,6 +38,22 @@ if (acquiredLock) {
     createMainWindow();
     initTray();
     initDiscordRpc();
+
+    // start auto-update logic after the window is created for notifications to work
+    updateElectronApp({
+      notifyUser: true,
+      onNotifyUser: (info) => {
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.send("update-downloaded", info);
+        }
+      },
+    });
+
+    // Listen for renderer process requests to quit the app
+    ipcMain.on("restart-app", () => {
+      app.relaunch();
+      app.exit(0);
+    });
 
     // Windows specific fix for notifications
     if (process.platform === "win32") {
